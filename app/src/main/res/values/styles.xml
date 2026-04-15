@@ -1,0 +1,57 @@
+<resources>
+    <style name="TextAppearance.ReverseEngineeringBuildPhase.ScreenTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">22sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="android:textColor">@color/cp_text_primary</item>
+    </style>
+
+    <style name="TextAppearance.ReverseEngineeringBuildPhase.ScreenSubtitle" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.18</item>
+        <item name="android:textColor">@color/cp_text_secondary</item>
+    </style>
+
+    <style name="TextAppearance.ReverseEngineeringBuildPhase.Hint" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">13sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textColor">@color/cp_text_secondary</item>
+    </style>
+
+    <style name="TextAppearance.ReverseEngineeringBuildPhase.PromptInput" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+        <item name="android:textColor">@color/cp_text_primary</item>
+    </style>
+
+    <style name="TextAppearance.ReverseEngineeringBuildPhase.Status" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">13sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:lineSpacingMultiplier">1.25</item>
+        <item name="android:textColor">@color/cp_text_secondary</item>
+    </style>
+
+    <style name="Widget.ReverseEngineeringBuildPhase.Button.Primary" parent="Widget.Material3.Button">
+        <item name="android:textColor">@color/cp_bg_start</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:background">@drawable/bg_neon_button_primary</item>
+    </style>
+
+    <style name="Widget.ReverseEngineeringBuildPhase.Button.Outline" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/cp_neon_cyan</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="strokeColor">@color/cp_neon_cyan</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:background">@drawable/bg_neon_button_outline</item>
+    </style>
+</resources>

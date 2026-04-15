@@ -1,0 +1,15 @@
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <color name="cp_bg_start">#FF090A18</color>
+    <color name="cp_bg_end">#FF151937</color>
+    <color name="cp_surface">#CC141A35</color>
+    <color name="cp_surface_border">#6629E3FF</color>
+    <color name="cp_text_primary">#FFF3F8FF</color>
+    <color name="cp_text_secondary">#FF9BA6CC</color>
+    <color name="cp_neon_cyan">#FF00E5FF</color>
+    <color name="cp_neon_magenta">#FFFF38C8</color>
+    <color name="cp_neon_blue">#FF3A4DFF</color>
+    <color name="cp_error">#FFFF6B9E</color>
+</resources>
