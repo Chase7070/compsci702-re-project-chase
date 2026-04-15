@@ -3,6 +3,19 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+import java.util.Properties
+
+val secrets = Properties().apply {
+    val secretsFile = rootProject.file("secrets.properties")
+    if (secretsFile.exists()) {
+        secretsFile.inputStream().use { load(it) }
+    }
+}
+
+fun secret(name: String, defaultValue: String = ""): String {
+    return secrets.getProperty(name, defaultValue)
+}
+
 android {
     namespace = "com.example.reverseengineeringbuildphase"
     compileSdk = 34
@@ -16,10 +29,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // TODO: Replace with your real endpoint and token source.
-        // Authorization header must be the raw token only (no "Bearer " prefix); Bearer causes HTTP 401 on /auth.
-        buildConfigField("String", "BASE_URL", "\"https://ai.elliottwen.info/\"")
-        buildConfigField("String", "AUTHORIZATION_TOKEN", "\"c0957e34a11786192e8819a7d4faef725c3a0becf05716823b30e37111196e92ba1953a695dddd761cce8abbffefce40da8059d06aa651a02f9cc3322a7d1e0b\"")
+        // Read local values from secrets.properties.
+        // AUTHORIZATION_TOKEN should be the raw token only, with no "Bearer " prefix.
+        buildConfigField("String", "BASE_URL", "\"${secret("API_BASE_URL", "https://ai.elliottwen.info/")}\"")
+        buildConfigField("String", "AUTHORIZATION_TOKEN", "\"${secret("AUTH_HEADER_VALUE")}\"")
     }
 
     buildTypes {

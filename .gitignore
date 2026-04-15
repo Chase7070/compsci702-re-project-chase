@@ -47,3 +47,4 @@ signing.properties
 *.mitm
 traffic/
 logs/
+.vscode/
