@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Reverse Engineering Build Phase</string>
+    <string name="screen_title">NEURAL GEN</string>
+    <string name="screen_subtitle">TEXT-TO-IMAGE LAB</string>
+    <string name="prompt_hint">Enter prompt...</string>
+    <string name="generate">Generate</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="idle_message">Input prompt and generate image.</string>
+    <string name="loading_message">Generating image...</string>
+    <string name="image_preview">Generated image preview</string>
+    <string name="error_prompt_empty">请输入 prompt</string>
+</resources>

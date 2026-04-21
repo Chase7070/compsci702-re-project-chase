@@ -1,1 +1,91 @@
-# compsci702-re-project-chase
+# COMPSCI 702 · Reverse Engineering Project (Android)  
+# COMPSCI 702 · 逆向工程课程项目（Android）
+
+**EN:** University of Auckland **COMPSCI 702** course project: an Android client that talks **directly** to the course server. Main flow: **prompt → `/auth` → `/generate_image` → image preview → save to gallery**.
+
+**中文：** 奥克兰大学 **COMPSCI 702** 课程 Android 客户端，**仅直连**课程服务器。主流程：**输入 prompt → `/auth` → `/generate_image` → 图片预览 → 保存到相册**。
+
+---
+
+## Requirements / 环境要求
+
+**EN:** JDK 17 · Android Studio (stable recommended) · Android SDK (API 34 recommended) · standard AVD or USB-debugged device.
+
+**中文：** JDK 17 · Android Studio（建议稳定版）· Android SDK（建议 API 34）· 标准模拟器或已开启 USB 调试的真机。
+
+---
+
+## Quick start / 快速开始
+
+**EN**
+
+1. Open the **repository root** in Android Studio (folder with `settings.gradle.kts`).  
+2. Create local secrets (never commit):
+
+   ```bash
+   cp secrets.example.properties secrets.properties
+   ```
+
+   Set at least: `API_BASE_URL` (HTTPS base URL; trailing slash per backend), `AUTH_HEADER_VALUE` (see comments in `app/build.gradle.kts` for `Bearer` prefix).  
+3. Run the **app** configuration (default **debug**).
+
+**中文**
+
+1. 在 Android Studio 中打开**仓库根目录**（含 `settings.gradle.kts`）。  
+2. 本地创建密钥文件（**不要**提交到 Git）：
+
+   ```bash
+   cp secrets.example.properties secrets.properties
+   ```
+
+   至少填写：`API_BASE_URL`（课程服务器 HTTPS 基址，末尾斜杠按后端要求）、`AUTH_HEADER_VALUE`（详见 `app/build.gradle.kts` 内注释）。  
+3. 运行 **app**（默认 **debug**）。
+
+**More / 详细步骤与排错：** [docs/build/install-and-run.md](docs/build/install-and-run.md)
+
+---
+
+## Build / 构建
+
+| Variant / 变体 | Command / 命令 | Notes / 说明 |
+|----------------|------------------|----------------|
+| Debug | `./gradlew :app:assembleDebug` | **EN:** Dev & emulator; APK in `app/build/outputs/apk/debug/`. **中文：** 日常开发与模拟器演示。 |
+| Release | `./gradlew :app:assembleRelease` | **EN:** R8 + shrink resources; APK in `app/build/outputs/apk/release/`. May be **unsigned**—add signing in Android Studio if needed. **中文：** 已启用混淆与资源收缩；默认可能为**未签名** APK，需在 Android Studio 配置签名后再装真机。 |
+
+---
+
+## Documentation / 文档索引
+
+| | |
+|--|--|
+| **EN** | [Install and run](docs/build/install-and-run.md) · [Repository structure](docs/build/repository-structure.md) · [Fortify log](docs/fortify/2026-04-21.md) |
+| **中文** | [安装与运行](docs/build/install-and-run.md) · [仓库结构](docs/build/repository-structure.md) · [Fortify 记录](docs/fortify/2026-04-21.md) |
+
+---
+
+## Fortify status / 加固状态
+
+**Done / 已完成**
+
+- **EN:** Release **R8 / ProGuard** + resource shrinking; minimal **keep** rules for Retrofit / Gson. Release builds omit OkHttp `HttpLoggingInterceptor`; debug keeps `Level.BASIC`.  
+- **中文：** Release 启用 **R8/ProGuard** 与资源收缩；为 Retrofit/Gson 保留最小 **keep** 规则。Release 不注册 OkHttp 网络日志拦截器；Debug 仍使用 `BASIC` 便于调试。
+
+**Planned / 计划中**（渐进、符合课程要求）
+
+- **EN:** Network Security Config · outbound **host allowlist** (API + image URLs) · mild signing / integrity checks (no hard anti-emulator).  
+- **中文：** 网络安全配置（HTTPS/域名策略）· 出站 **host 白名单**（接口与图片 URL）· 温和签名/完整性检测（不做强硬反模拟器）。
+
+**Details / 详情：** [docs/fortify/2026-04-21.md](docs/fortify/2026-04-21.md)
+
+---
+
+## Compliance & secrets / 合规与密钥
+
+**EN:** App talks **only** to the course server—no third-party proxies or unrelated outbound traffic. Do not commit `secrets.properties`, real tokens, or final keys. No commercial obfuscators; use Android **R8**.
+
+**中文：** App **仅**与课程服务器通信，禁止第三方中转或无关外联。勿将 `secrets.properties`、真实 token、最终提交用密钥提交到仓库。不使用商业混淆器，使用 Android 自带 **R8**。
+
+---
+
+*Course assignment repository—not a production product.*  
+*课程作业仓库，非生产级产品。*
