@@ -33,6 +33,12 @@ android {
         // AUTHORIZATION_TOKEN should be the raw token only, with no "Bearer " prefix.
         buildConfigField("String", "BASE_URL", "\"${secret("API_BASE_URL", "https://ai.elliottwen.info/")}\"")
         buildConfigField("String", "AUTHORIZATION_TOKEN", "\"${secret("AUTH_HEADER_VALUE")}\"")
+        // Optional comma-separated extra hosts for image/CDN (no scheme). BASE_URL host is always allowed.
+        buildConfigField(
+            "String",
+            "ALLOWED_NETWORK_HOSTS",
+            "\"${secret("ALLOWED_NETWORK_HOSTS", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
     }
 
     buildTypes {

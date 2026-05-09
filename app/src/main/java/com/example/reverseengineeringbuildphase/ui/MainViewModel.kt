@@ -106,6 +106,18 @@ class MainViewModel : ViewModel() {
                         statusMessage = "生成失败。"
                     )
                 }
+            } catch (e: GenerateImageFailure.InvalidImageUrl) {
+                val msg = NetworkErrorMapper.messageWithPrefix(
+                    cause = e.cause ?: e,
+                    prefix = "图片地址无效："
+                )
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        pipelineError = msg,
+                        statusMessage = "生成失败。"
+                    )
+                }
             } catch (e: Exception) {
                 val msg = NetworkErrorMapper.messageForThrowable(e)
                 _uiState.update {
