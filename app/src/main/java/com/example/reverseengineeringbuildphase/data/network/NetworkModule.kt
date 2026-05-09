@@ -8,7 +8,9 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object NetworkModule {
-    private val okHttpClient: OkHttpClient = OkHttpClient.Builder().apply {
+
+    val okHttpClient: OkHttpClient = OkHttpClient.Builder().apply {
+        addInterceptor(HostAllowlistInterceptor(AllowedHosts.asSet()))
         addInterceptor(AuthorizationInterceptor { BuildConfig.AUTHORIZATION_TOKEN })
         if (BuildConfig.DEBUG) {
             addInterceptor(
@@ -17,6 +19,7 @@ object NetworkModule {
                 }
             )
         }
+        addInterceptor(ImageGetContentTypeInterceptor())
         connectTimeout(20, TimeUnit.SECONDS)
         readTimeout(45, TimeUnit.SECONDS)
         writeTimeout(45, TimeUnit.SECONDS)

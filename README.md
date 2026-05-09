@@ -58,8 +58,8 @@
 
 | | |
 |--|--|
-| **EN** | [Install and run](docs/build/install-and-run.md) · [Repository structure](docs/build/repository-structure.md) · [Fortify log](docs/fortify/2026-04-21.md) |
-| **中文** | [安装与运行](docs/build/install-and-run.md) · [仓库结构](docs/build/repository-structure.md) · [Fortify 记录](docs/fortify/2026-04-21.md) |
+| **EN** | [Install and run](docs/build/install-and-run.md) · [Repository structure](docs/build/repository-structure.md) · [Fortify log](docs/fortify/2026-04-21.md) · [Dev log · 2026-05-09](docs/fortify/2026-05-09.md) |
+| **中文** | [安装与运行](docs/build/install-and-run.md) · [仓库结构](docs/build/repository-structure.md) · [Fortify 记录](docs/fortify/2026-04-21.md) · [开发日志 · 2026-05-09](docs/fortify/2026-05-09.md) |
 
 ---
 
@@ -69,11 +69,13 @@
 
 - **EN:** Release **R8 / ProGuard** + resource shrinking; minimal **keep** rules for Retrofit / Gson. Release builds omit OkHttp `HttpLoggingInterceptor`; debug keeps `Level.BASIC`.  
 - **中文：** Release 启用 **R8/ProGuard** 与资源收缩；为 Retrofit/Gson 保留最小 **keep** 规则。Release 不注册 OkHttp 网络日志拦截器；Debug 仍使用 `BASIC` 便于调试。
+- **EN:** **Network Security Config** (no cleartext; release trusts **system CAs only**; debuggable builds may trust **user** CAs). **`allowBackup=false`**, **`usesCleartextTraffic=false`**. Outbound **host allowlist** (OkHttp) + **HTTPS + host** checks on image URLs; successful **GET** responses must declare an **image** `Content-Type`. Coil + gallery save share the same OkHttp stack.  
+- **中文：** **网络安全配置**（禁止明文；**release** 仅系统 CA；**debuggable** 构建可信任 **user** CA 便于调试）。**`allowBackup=false`**、**`usesCleartextTraffic=false`**。出站 **Host 白名单**（OkHttp）与图片 URL **HTTPS + 域名** 校验；成功 **GET** 的 **Content-Type** 须为图片类型。Coil 预览与相册保存共用同一 OkHttp 客户端。
 
 **Planned / 计划中**（渐进、符合课程要求）
 
-- **EN:** Network Security Config · outbound **host allowlist** (API + image URLs) · mild signing / integrity checks (no hard anti-emulator).  
-- **中文：** 网络安全配置（HTTPS/域名策略）· 出站 **host 白名单**（接口与图片 URL）· 温和签名/完整性检测（不做强硬反模拟器）。
+- **EN:** Mild signing / integrity checks (no hard anti-emulator).  
+- **中文：** 温和签名/完整性检测（不做强硬反模拟器）。
 
 **Details / 详情：** [docs/fortify/2026-04-21.md](docs/fortify/2026-04-21.md)
 

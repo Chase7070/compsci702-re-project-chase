@@ -8,15 +8,23 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.example.reverseengineeringbuildphase.data.network.ImageUrlValidator
+import com.example.reverseengineeringbuildphase.data.network.NetworkModule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.URL
+import okhttp3.Request
 
 object ImageSaver {
     suspend fun saveFromUrl(context: Context, imageUrl: String): Result<Uri> = withContext(Dispatchers.IO) {
         runCatching {
-            val bitmap = URL(imageUrl).openStream().use { inputStream ->
-                BitmapFactory.decodeStream(inputStream)
+            ImageUrlValidator.validateOrThrow(imageUrl)
+
+            val request = Request.Builder().url(imageUrl).get().build()
+            val bitmap = NetworkModule.okHttpClient.newCall(request).execute().use { response ->
+                check(response.isSuccessful) { "HTTP ${response.code}" }
+                val body = response.body ?: error("Empty response body.")
+                val bytes = body.bytes()
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
             } ?: error("Unable to decode image data.")
 
             saveBitmapToGallery(context, bitmap)
