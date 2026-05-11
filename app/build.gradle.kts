@@ -1,8 +1,22 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("stringfog") version "5.2.0"
 }
 
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        // Required so StringFog can Class.forName(StringFogImpl) during configuration (see upstream README).
+        classpath("com.github.megatronking.stringfog:xor:5.0.0")
+    }
+}
+
+import com.github.megatronking.stringfog.plugin.StringFogExtension
+import com.github.megatronking.stringfog.plugin.StringFogMode
+import com.github.megatronking.stringfog.plugin.kg.RandomKeyGenerator
 import java.util.Properties
 
 val secrets = Properties().apply {
@@ -67,6 +81,19 @@ android {
     }
 }
 
+configure<StringFogExtension> {
+    // XOR runtime (must match implementation class below).
+    implementation = "com.github.megatronking.stringfog.xor.StringFogImpl"
+    enable = true
+    debug = false
+    // Only our application code; do not fog third-party / generated deps.
+    fogPackages = arrayOf("com.example.reverseengineeringbuildphase")
+    kg = RandomKeyGenerator()
+    mode = StringFogMode.bytes
+    // Manifest has no package=; explicit id matches namespace / applicationId.
+    packageName = "com.example.reverseengineeringbuildphase"
+}
+
 dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.core:core-ktx:1.13.1")
@@ -84,6 +111,9 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation("io.coil-kt:coil:2.7.0")
+
+    // StringFog runtime decryptor (see stringfog { implementation = ... }).
+    implementation("com.github.megatronking.stringfog:xor:5.0.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
