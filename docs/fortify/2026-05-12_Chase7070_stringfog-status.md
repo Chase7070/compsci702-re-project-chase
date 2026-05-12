@@ -1,6 +1,6 @@
-# Fortify · StringFog 现状总结 · Chase7070 · 2025-5-12
+# Fortify · StringFog 现状总结 · Chase7070 · 2026-05-12
 
-**文件：** `2025-5-12_Chase7070_stringfog-status.md`  
+**文件：** `2026-05-12_Chase7070_stringfog-status.md`  
 **主题：** 工程内 StringFog 接入现状、R8/ProGuard 与 Gson 配套规则、Retrofit endpoint 迁出注解后的边界说明，以及 Release 静态验证建议（基于事实勘误修订稿）。
 
 ---

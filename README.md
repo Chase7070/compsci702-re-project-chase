@@ -58,8 +58,8 @@
 
 | | |
 |--|--|
-| **EN** | [Install and run](docs/build/install-and-run.md) · [Repository structure](docs/build/repository-structure.md) · [Fortify log](docs/fortify/2026-04-21.md) · [Dev log · 2026-05-09](docs/fortify/2026-05-09.md) · [Dev log · 2026-05-11 · StringFog](docs/fortify/2026-05-11.md) |
-| **中文** | [安装与运行](docs/build/install-and-run.md) · [仓库结构](docs/build/repository-structure.md) · [Fortify 记录](docs/fortify/2026-04-21.md) · [开发日志 · 2026-05-09](docs/fortify/2026-05-09.md) · [开发日志 · 2026-05-11 · StringFog](docs/fortify/2026-05-11.md) |
+| **EN** | [Install and run](docs/build/install-and-run.md) · [Repository structure](docs/build/repository-structure.md) · [Fortify log](docs/fortify/2026-04-21.md) · [Dev log · 2026-05-09](docs/fortify/2026-05-09.md) · [Dev log · 2026-05-11 · StringFog](docs/fortify/2026-05-11_Chase7070_fog_v1.1.md) · [Dev log · 2026-05-12 · fog v1.2](docs/fortify/2026-05-12_Chase7070_fog_v1.2.md) · [StringFog status · 2026-05-12](docs/fortify/2026-05-12_Chase7070_stringfog-status.md) |
+| **中文** | [安装与运行](docs/build/install-and-run.md) · [仓库结构](docs/build/repository-structure.md) · [Fortify 记录](docs/fortify/2026-04-21.md) · [开发日志 · 2026-05-09](docs/fortify/2026-05-09.md) · [开发日志 · 2026-05-11 · StringFog](docs/fortify/2026-05-11_Chase7070_fog_v1.1.md) · [开发日志 · 2026-05-12 · fog v1.2](docs/fortify/2026-05-12_Chase7070_fog_v1.2.md) · [StringFog 现状总结 · 2026-05-12](docs/fortify/2026-05-12_Chase7070_stringfog-status.md) |
 
 ---
 
