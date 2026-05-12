@@ -4,16 +4,20 @@ import com.example.reverseengineeringbuildphase.data.model.AuthResponse
 import com.example.reverseengineeringbuildphase.data.model.GenerateImageRequest
 import retrofit2.http.Body
 import retrofit2.http.POST
+import retrofit2.http.Url
 
 interface ApiService {
-    @POST("auth")
-    suspend fun auth(): AuthResponse
+    /** Relative path (no leading slash); resolved against Retrofit baseUrl, which must end with `/`. */
+    @POST
+    suspend fun auth(@Url path: String): AuthResponse
 
     /**
      * Backend returns a JSON string (e.g. `"images/uuid.jpg"`), not an object with `image_url`.
+     * Relative path (no leading slash); resolved against baseUrl ending with `/`.
      */
-    @POST("generate_image")
+    @POST
     suspend fun generateImage(
+        @Url path: String,
         @Body request: GenerateImageRequest
     ): String
 }

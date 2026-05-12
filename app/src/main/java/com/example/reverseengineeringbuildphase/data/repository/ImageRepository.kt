@@ -3,6 +3,7 @@ package com.example.reverseengineeringbuildphase.data.repository
 import com.example.reverseengineeringbuildphase.BuildConfig
 import com.example.reverseengineeringbuildphase.data.model.GenerateImageRequest
 import com.example.reverseengineeringbuildphase.data.network.ApiService
+import com.example.reverseengineeringbuildphase.data.network.EndpointProvider
 import com.example.reverseengineeringbuildphase.data.network.ImageUrlValidator
 import com.example.reverseengineeringbuildphase.domain.GenerateImageFailure
 import kotlinx.coroutines.CancellationException
@@ -16,7 +17,7 @@ class ImageRepository(
         coroutineContext.ensureActive()
 
         val signature = try {
-            val response = apiService.auth()
+            val response = apiService.auth(EndpointProvider.authPath())
             val sig = response.signature.trim()
             if (sig.isEmpty()) {
                 throw GenerateImageFailure.AuthFailed(
@@ -36,6 +37,7 @@ class ImageRepository(
 
         return try {
             val raw = apiService.generateImage(
+                EndpointProvider.generateImagePath(),
                 GenerateImageRequest(
                     signature = signature,
                     prompt = prompt
