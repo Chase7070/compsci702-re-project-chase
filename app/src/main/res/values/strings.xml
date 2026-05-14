@@ -10,4 +10,5 @@
     <string name="loading_message">Generating image...</string>
     <string name="image_preview">Generated image preview</string>
     <string name="error_prompt_empty">请输入 prompt</string>
+    <string name="session_relogin_hint">登录状态已失效，请重新配置凭证或联系管理员。</string>
 </resources>

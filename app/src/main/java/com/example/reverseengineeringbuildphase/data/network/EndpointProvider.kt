@@ -8,4 +8,8 @@ object EndpointProvider {
     fun authPath(): String = "a" + "u" + "t" + "h"
 
     fun generateImagePath(): String = "generate" + "_" + "image"
+
+    fun sessionPath(): String = "s" + "e" + "s" + "s" + "i" + "o" + "n"
+
+    fun sessionRefreshPath(): String = sessionPath() + "/" + "r" + "e" + "f" + "r" + "e" + "s" + "h"
 }

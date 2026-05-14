@@ -17,6 +17,8 @@ buildscript {
 import com.github.megatronking.stringfog.plugin.StringFogExtension
 import com.github.megatronking.stringfog.plugin.StringFogMode
 import com.github.megatronking.stringfog.plugin.kg.RandomKeyGenerator
+import org.gradle.api.GradleException
+import java.io.File
 import java.util.Properties
 
 val secrets = Properties().apply {
@@ -29,6 +31,35 @@ val secrets = Properties().apply {
 fun secret(name: String, defaultValue: String = ""): String {
     return secrets.getProperty(name, defaultValue)
 }
+
+val isReleaseBuildRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("release", ignoreCase = true)
+}
+
+if (isReleaseBuildRequested && secret("CERT_PINS").isBlank()) {
+    throw GradleException(
+        "Release builds require CERT_PINS in secrets.properties. " +
+            "Debug may omit pinning, but release must ship with certificate pins."
+    )
+}
+
+tasks.register("syncAuthBootstrap") {
+    doLast {
+        val outDir = File(projectDir, "src/debug/assets")
+        outDir.mkdirs()
+        val token = secret("AUTH_HEADER_VALUE", "").trim()
+        val f = File(outDir, "auth_bootstrap.txt")
+        File(projectDir, "src/main/assets/auth_bootstrap.txt").delete()
+        File(projectDir, "src/release/assets/auth_bootstrap.txt").delete()
+        if (token.isNotEmpty()) {
+            f.writeText(token)
+        } else if (f.exists()) {
+            f.delete()
+        }
+    }
+}
+
+tasks.named("preBuild").configure { dependsOn("syncAuthBootstrap") }
 
 android {
     namespace = "com.example.reverseengineeringbuildphase"
@@ -44,14 +75,31 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Read local values from secrets.properties.
-        // AUTHORIZATION_TOKEN should be the raw token only, with no "Bearer " prefix.
         buildConfigField("String", "BASE_URL", "\"${secret("API_BASE_URL", "https://ai.elliottwen.info/")}\"")
-        buildConfigField("String", "AUTHORIZATION_TOKEN", "\"${secret("AUTH_HEADER_VALUE")}\"")
+        // Optional local bootstrap token. Used to seed debug assets and as a local release fallback
+        // when `/session` is unavailable; keep it in secrets.properties only.
+        buildConfigField(
+            "String",
+            "LOCAL_BOOTSTRAP_AUTH_VALUE",
+            "\"${secret("AUTH_HEADER_VALUE", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
         // Optional comma-separated extra hosts for image/CDN (no scheme). BASE_URL host is always allowed.
         buildConfigField(
             "String",
             "ALLOWED_NETWORK_HOSTS",
             "\"${secret("ALLOWED_NETWORK_HOSTS", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
+        // Optional OkHttp pins: comma-separated `sha256/...` for the host of BASE_URL (see secrets.example.properties).
+        buildConfigField(
+            "String",
+            "CERTIFICATE_PINS",
+            "\"${secret("CERT_PINS", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
+        // Optional release signing cert SHA-256 (hex, no colons). Empty = skip check.
+        buildConfigField(
+            "String",
+            "EXPECTED_SIGNING_CERT_SHA256",
+            "\"${secret("RELEASE_SIGNING_SHA256", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
         )
     }
 
@@ -103,6 +151,7 @@ dependencies {
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
+    implementation("androidx.security:security-crypto:1.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

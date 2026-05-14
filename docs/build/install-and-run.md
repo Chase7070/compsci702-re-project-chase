@@ -37,7 +37,12 @@ This project reads local auth config from `secrets.properties` at repository roo
 Required keys:
 
 - `API_BASE_URL`
-- `AUTH_HEADER_VALUE`
+- `AUTH_HEADER_VALUE` (optional local bootstrap value; debug copies it into `app/src/debug/assets/auth_bootstrap.txt`, and locally built release can also use it if `/session` is unavailable)
+
+Optional keys (see `secrets.example.properties`):
+
+- `CERT_PINS` — OkHttp certificate pins; required for release builds. `sha256/...` applies to `API_BASE_URL`, while `host=sha256/...` can pin extra allowlisted hosts
+- `RELEASE_SIGNING_SHA256` — expected release signing cert fingerprint (hex)
 
 You can copy from template:
 
@@ -86,8 +91,11 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - **Gradle sync fails**: check internet, proxy, and Android SDK setup.  
   **Gradle 同步失败**：检查网络、代理和 Android SDK 配置。
 
-- **Network request errors**: verify `API_BASE_URL` and `AUTH_HEADER_VALUE` in local `secrets.properties`.  
-  **网络请求失败**：检查本地 `secrets.properties` 中的 `API_BASE_URL` 和 `AUTH_HEADER_VALUE`。
+- **Network request errors**: verify `API_BASE_URL`; if the app depends on local bootstrap compatibility, also verify `AUTH_HEADER_VALUE`. Release additionally requires valid `CERT_PINS`.  
+  **网络请求失败**：检查本地 `API_BASE_URL`；若当前依赖本地 bootstrap 兼容路径，也要检查 `AUTH_HEADER_VALUE`。构建 release 还需要有效的 `CERT_PINS`。
+
+- **Release gets 401 on `/auth`**: if the backend has not fully switched to `/session`, confirm local `AUTH_HEADER_VALUE` is set so release can seed `LOCAL_BOOTSTRAP_AUTH_VALUE` as a compatibility fallback.  
+  **release 在 `/auth` 返回 401**：如果后端尚未完全切换到 `/session`，请确认本地已填写 `AUTH_HEADER_VALUE`，以便 release 通过 `LOCAL_BOOTSTRAP_AUTH_VALUE` 做兼容回退。
 
 - **429 Too Many Requests**: backend rate limit reached; wait and retry later.  
   **429 请求过多**：触发后端限流，稍后再试。

@@ -1,11 +1,14 @@
 package com.example.reverseengineeringbuildphase.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.reverseengineeringbuildphase.data.network.NetworkModule
 import com.example.reverseengineeringbuildphase.data.repository.ImageRepository
 import com.example.reverseengineeringbuildphase.domain.GenerateImageFailure
 import com.example.reverseengineeringbuildphase.domain.GenerateImageUseCase
+import com.example.reverseengineeringbuildphase.security.DeviceRisk
+import com.example.reverseengineeringbuildphase.security.IntegrityChecker
 import com.example.reverseengineeringbuildphase.util.NetworkErrorMapper
 import kotlinx.coroutines.CancellationException as CoroutineCancellationException
 import kotlinx.coroutines.Job
@@ -15,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val useCase = GenerateImageUseCase(
         ImageRepository(NetworkModule.apiService)
     )
@@ -47,6 +50,34 @@ class MainViewModel : ViewModel() {
                 )
             }
             return
+        }
+
+        val app = getApplication<Application>()
+        val risk = IntegrityChecker.assess(app)
+        if (risk == DeviceRisk.High) {
+            _uiState.update {
+                it.copy(
+                    pipelineError = "检测到高风险运行环境（例如调试、Hook 或重打包迹象），已禁止发起生成请求。",
+                    statusMessage = "生成已阻止。"
+                )
+            }
+            return
+        }
+        if (!IntegrityChecker.signingCertMatchesExpected(app)) {
+            _uiState.update {
+                it.copy(
+                    pipelineError = "应用签名与预期不一致，已禁止发起生成请求。",
+                    statusMessage = "生成已阻止。"
+                )
+            }
+            return
+        }
+        if (risk == DeviceRisk.Medium) {
+            _uiState.update {
+                it.copy(
+                    statusMessage = "提示：检测到中风险运行环境（例如 root、test-keys 或异常安装来源），将继续尝试请求。"
+                )
+            }
         }
 
         generateJob?.cancel()

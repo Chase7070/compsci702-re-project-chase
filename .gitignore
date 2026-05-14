@@ -39,8 +39,7 @@ google-services.json
 .env.*
 *.env
 secrets.properties
-# syncAuthBootstrap (AUTH_HEADER_VALUE) writes here; do not commit
-app/src/debug/assets/
+app/src/debug/assets/auth_bootstrap.txt
 key.properties
 signing.properties
 
