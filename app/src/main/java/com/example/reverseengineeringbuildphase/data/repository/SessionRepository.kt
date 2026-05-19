@@ -20,13 +20,15 @@ class SessionRepository(
     private val publicApiService: ApiService,
     private val tokenManager: TokenManager,
     private val assetBootstrapReader: () -> String?,
-    private val localBootstrapReader: () -> String?
+    private val localBootstrapReader: () -> String?,
+    private val releaseCredentialReader: () -> String?
 ) {
 
     suspend fun bootstrapIfNeeded() = withContext(Dispatchers.IO) {
         if (tokenManager.hasAccessToken()) return@withContext
         val bootstrap = assetBootstrapReader()?.trim().takeIf { !it.isNullOrEmpty() }
             ?: localBootstrapReader()?.trim().takeIf { !it.isNullOrEmpty() }
+            ?: releaseCredentialReader()?.trim().takeIf { !it.isNullOrEmpty() }
             ?: ""
 
         val remote = tryCreateSession(bootstrap)

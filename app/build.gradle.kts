@@ -19,6 +19,8 @@ import com.github.megatronking.stringfog.plugin.StringFogMode
 import com.github.megatronking.stringfog.plugin.kg.RandomKeyGenerator
 import org.gradle.api.GradleException
 import java.io.File
+import java.security.KeyStore
+import java.security.MessageDigest
 import java.util.Properties
 
 val secrets = Properties().apply {
@@ -34,6 +36,23 @@ fun secret(name: String, defaultValue: String = ""): String {
 
 val isReleaseBuildRequested = gradle.startParameter.taskNames.any { taskName ->
     taskName.contains("release", ignoreCase = true)
+}
+
+apply(from = rootProject.file("gradle/credential-fragments.gradle.kts"))
+
+fun resolveBuildSigningSha256(): String {
+    val configured = secret("RELEASE_SIGNING_SHA256", "").trim().lowercase()
+    if (configured.isNotEmpty()) return configured
+    val home = System.getProperty("user.home")
+    val keystore = File(home, ".android/debug.keystore")
+    if (!keystore.exists()) return ""
+    return runCatching {
+        val ks = KeyStore.getInstance(KeyStore.getDefaultType())
+        keystore.inputStream().use { stream -> ks.load(stream, "android".toCharArray()) }
+        val cert = ks.getCertificate("androiddebugkey") ?: return ""
+        val md = MessageDigest.getInstance("SHA-256")
+        md.digest(cert.encoded).joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    }.getOrDefault("")
 }
 
 if (isReleaseBuildRequested && secret("CERT_PINS").isBlank()) {
@@ -59,7 +78,9 @@ tasks.register("syncAuthBootstrap") {
     }
 }
 
-tasks.named("preBuild").configure { dependsOn("syncAuthBootstrap") }
+tasks.named("preBuild").configure {
+    dependsOn("syncAuthBootstrap", "generateCredentialFragments")
+}
 
 android {
     namespace = "com.example.reverseengineeringbuildphase"
@@ -76,13 +97,6 @@ android {
 
         // Read local values from secrets.properties.
         buildConfigField("String", "BASE_URL", "\"${secret("API_BASE_URL", "https://ai.elliottwen.info/")}\"")
-        // Optional local bootstrap token. Used to seed debug assets and as a local release fallback
-        // when `/session` is unavailable; keep it in secrets.properties only.
-        buildConfigField(
-            "String",
-            "LOCAL_BOOTSTRAP_AUTH_VALUE",
-            "\"${secret("AUTH_HEADER_VALUE", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
-        )
         // Optional comma-separated extra hosts for image/CDN (no scheme). BASE_URL host is always allowed.
         buildConfigField(
             "String",
@@ -95,18 +109,31 @@ android {
             "CERTIFICATE_PINS",
             "\"${secret("CERT_PINS", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
         )
-        // Optional release signing cert SHA-256 (hex, no colons). Empty = skip check.
         buildConfigField(
             "String",
             "EXPECTED_SIGNING_CERT_SHA256",
-            "\"${secret("RELEASE_SIGNING_SHA256", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
+            "\"${resolveBuildSigningSha256().replace("\\", "\\\\").replace("\"", "\\\"")}\""
         )
     }
 
+    sourceSets {
+        getByName("main") {
+            java.srcDir(layout.buildDirectory.dir("generated/credential-src"))
+        }
+    }
+
     buildTypes {
+        debug {
+            buildConfigField(
+                "String",
+                "LOCAL_BOOTSTRAP_AUTH_VALUE",
+                "\"${secret("AUTH_HEADER_VALUE", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
+            )
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("String", "LOCAL_BOOTSTRAP_AUTH_VALUE", "\"\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

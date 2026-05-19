@@ -30,9 +30,9 @@
 1. Clone the repository.
 2. Create local `secrets.properties` from `secrets.example.properties`.
 3. Set `API_BASE_URL`.
-4. For local debug fallback only, set `AUTH_HEADER_VALUE` if needed.
+4. Set `AUTH_HEADER_VALUE` (debug asset + release AES-GCM credential fragments at build time).
 5. For release builds, set `CERT_PINS`.
-6. Optionally set `RELEASE_SIGNING_SHA256` if release signing certificate verification is used.
+6. Set `RELEASE_SIGNING_SHA256` when release APK is signed with a non-debug keystore (otherwise debug keystore hash is used for local emulator builds).
 7. Build:
 
 ```bash
@@ -45,9 +45,9 @@
 1. 克隆仓库。
 2. 复制 `secrets.example.properties` 为本地 `secrets.properties`。
 3. 配置 `API_BASE_URL`。
-4. 如需本地 debug fallback，可额外配置 `AUTH_HEADER_VALUE`。
+4. 配置 `AUTH_HEADER_VALUE`（debug 写入 asset；release 在编译时加密为 AES-GCM 片段）。
 5. 构建 release 时必须配置 `CERT_PINS`。
-6. 如启用 release 签名校验，可额外配置 `RELEASE_SIGNING_SHA256`。
+6. 若 release 使用非 debug 签名证书，需配置 `RELEASE_SIGNING_SHA256`（模拟器本地 release 可留空以使用 debug keystore 哈希）。
 7. 构建命令：
 
 ```bash
@@ -71,8 +71,11 @@ This project currently applies the following hardening measures:
 - Image URLs must be HTTPS and allowlisted
 - Certificate pinning is required in release
 - Debug-only bootstrap auth asset is no longer packaged in release
+- Release bootstrap credential is AES-GCM encrypted at build time and split across generated fragments; key derivation binds to package name, signing certificate SHA-256, and version code
+- API keys are not stored in release `BuildConfig` or StringFog-decrypted literals
 - Local token storage uses `EncryptedSharedPreferences`
 - Basic integrity/risk detection is enabled
+- Session/auth DTO `toString()` redacts tokens
 
 ### 中文
 
@@ -86,8 +89,11 @@ This project currently applies the following hardening measures:
 - 图片 URL 必须为 HTTPS 且在白名单中
 - Release 要求配置证书 pin
 - 调试用 bootstrap 认证 asset 不再打包进 release
+- Release bootstrap 在编译时 AES-GCM 加密并分散为生成片段；密钥派生绑定包名、签名证书 SHA-256 与 versionCode
+- API key 不再进入 release `BuildConfig` 或 StringFog 明文字符串
 - 本地 token 使用 `EncryptedSharedPreferences` 存储
 - 已接入基础完整性 / 风险检测
+- Session/auth DTO 的 `toString()` 已脱敏
 
 ---
 
@@ -98,18 +104,20 @@ This project currently applies the following hardening measures:
 This submission uses only open-source or officially supported Android hardening/obfuscation tools:
 
 - Android R8 / ProGuard
-- StringFog (open source)
+- StringFog (open source; UI strings only — not used for API bootstrap credential)
+- Custom `RuntimeCredentialProvider` with AES-GCM and build-time fragment generation
 
-No commercial obfuscator is used.
+No commercial obfuscator is used. dProtect was not added (GitHub Packages credentials required; conservative R8 + custom credential layer preferred).
 
 ### 中文
 
 本次提交仅使用开源或 Android 官方支持的强化 / 混淆工具：
 
 - Android R8 / ProGuard
-- StringFog（开源）
+- StringFog（开源；仅 UI 字符串，不用于 API bootstrap）
+- 自定义 `RuntimeCredentialProvider`（AES-GCM + 编译期生成分片）
 
-未使用任何商业混淆器。
+未使用任何商业混淆器。未接入 dProtect（需 GitHub Packages 凭证；采用 R8 + 自定义凭证层）。
 
 ---
 

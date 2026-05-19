@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.reverseengineeringbuildphase.BuildConfig
 import com.example.reverseengineeringbuildphase.data.repository.SessionRepository
 import com.example.reverseengineeringbuildphase.data.security.TokenManager
+import com.example.reverseengineeringbuildphase.security.credential.RuntimeCredentialProvider
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -42,9 +43,20 @@ object NetworkModule {
             }
         }
         val localBootstrapReader: () -> String? = {
-            BuildConfig.LOCAL_BOOTSTRAP_AUTH_VALUE
-                .trim()
-                .takeIf { value -> value.isNotEmpty() }
+            if (!BuildConfig.DEBUG) {
+                null
+            } else {
+                BuildConfig.LOCAL_BOOTSTRAP_AUTH_VALUE
+                    .trim()
+                    .takeIf { value -> value.isNotEmpty() }
+            }
+        }
+        val releaseCredentialReader: () -> String? = {
+            if (BuildConfig.DEBUG) {
+                null
+            } else {
+                RuntimeCredentialProvider.bootstrapTokenOrNull(app)
+            }
         }
         val pinner = PinningConfigurator.certificatePinnerOrNull()
 
@@ -55,7 +67,13 @@ object NetworkModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         val publicApi = publicRetrofit.create(ApiService::class.java)
-        sessionRepository = SessionRepository(publicApi, tokenManager, assetReader, localBootstrapReader)
+        sessionRepository = SessionRepository(
+            publicApi,
+            tokenManager,
+            assetReader,
+            localBootstrapReader,
+            releaseCredentialReader
+        )
 
         okHttpClient = newOkHttpClientBuilder(pinner, withAuthorization = true)
             .authenticator(TokenRefreshAuthenticator(tokenManager, sessionRepository))

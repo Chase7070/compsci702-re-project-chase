@@ -26,7 +26,7 @@
    cp secrets.example.properties secrets.properties
    ```
 
-   Set at least: `API_BASE_URL` (HTTPS base URL; trailing slash per backend). You may also set local `AUTH_HEADER_VALUE` for bootstrap compatibility: debug writes it into `src/debug/assets`, and locally built release can also use it if `/session` is unavailable. Release builds additionally require `CERT_PINS`.  
+   Set at least: `API_BASE_URL` (HTTPS base URL; trailing slash per backend). Set `AUTH_HEADER_VALUE` for bootstrap: debug writes `src/debug/assets`; release encrypts it at compile time (not in `BuildConfig`). Release builds additionally require `CERT_PINS`.  
 3. Run the **app** configuration (default **debug**).
 
 **中文**
@@ -38,7 +38,7 @@
    cp secrets.example.properties secrets.properties
    ```
 
-   至少填写：`API_BASE_URL`（课程服务器 HTTPS 基址，末尾斜杠按后端要求）。如需本地 bootstrap 兼容，可额外填写 `AUTH_HEADER_VALUE`；debug 会写入 `src/debug/assets`，本地构建的 release 在 `/session` 未就绪时也可使用该值。构建 release 时还需要配置 `CERT_PINS`。  
+   至少填写：`API_BASE_URL`（课程服务器 HTTPS 基址，末尾斜杠按后端要求）。填写 `AUTH_HEADER_VALUE`：debug 写入 `src/debug/assets`；release 在编译时 AES-GCM 加密（不写入 `BuildConfig`）。构建 release 时还需要配置 `CERT_PINS`。  
 3. 运行 **app**（默认 **debug**）。
 
 **More / 详细步骤与排错：** [docs/build/install-and-run.md](docs/build/install-and-run.md)
@@ -73,8 +73,8 @@
 - **中文：** **网络安全配置**（禁止明文；**release** 仅系统 CA；**debuggable** 构建可信任 **user** CA 便于调试）。**`allowBackup=false`**、**`usesCleartextTraffic=false`**。出站 **Host 白名单**（OkHttp）与图片 URL **HTTPS + 域名** 校验；成功 **GET** 的 **Content-Type** 须为图片类型。Coil 预览与相册保存共用同一 OkHttp 客户端。
 - **EN:** **StringFog** (MegatronKing, open source): `gradle-plugin:5.2.0` + `xor:5.0.0`; encrypts string literals under `com.example.reverseengineeringbuildphase` only. **Retrofit `@POST` paths** and **`@SerializedName` JSON keys** may still appear in JADX; this layer targets static string search cost, not secret safety.  
 - **中文：** **StringFog**（开源）：`gradle-plugin:5.2.0` + `xor:5.0.0`；仅对 `com.example.reverseengineeringbuildphase` 包内字面量做处理。**Retrofit 注解路径**与 **`@SerializedName` 字段名**仍可能被 JADX 直接看到；本层用于降低静态搜索命中率，**不**等同于密钥安全。
-- **EN:** Debug-only bootstrap auth value is written to `src/debug/assets/auth_bootstrap.txt`; release builds no longer package that asset. Release also requires certificate pins and blocks sensitive requests in high-risk environments.  
-- **中文：** 调试用 bootstrap 鉴权值仅写入 `src/debug/assets/auth_bootstrap.txt`；release 不再打包该 asset。release 还要求配置证书 pin，并会在高风险环境下阻止敏感请求。
+- **EN:** Debug-only bootstrap auth value is written to `src/debug/assets/auth_bootstrap.txt`; release uses AES-GCM encrypted credential fragments bound to signing certificate SHA-256 (no plaintext in `BuildConfig` or StringFog). Release requires certificate pins and blocks sensitive requests when signing or integrity checks fail.
+- **中文：** Debug bootstrap 写入 `src/debug/assets/auth_bootstrap.txt`；release 使用绑定签名证书 SHA-256 的 AES-GCM 加密片段（明文不进 `BuildConfig` / StringFog）。release 需配置证书 pin，签名校验或高风险环境会阻止敏感请求。
 
 **Planned / 计划中**（渐进、符合课程要求）
 

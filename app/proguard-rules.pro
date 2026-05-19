@@ -1,7 +1,16 @@
 # StringFog: keep generated entry + XOR impl (R8 must not strip decrypt path).
 -keep class com.example.reverseengineeringbuildphase.StringFog { *; }
 -keep class com.github.megatronking.stringfog.xor.StringFogImpl { *; }
--keep class com.github.megatronking.stringfog.** { *; }
+-keep class com.github.megatronking.stringfog.xor.StringFogImpl { *; }
+
+# Release credential: keep decrypt entry points; allow fragment classes to be renamed.
+-keep class com.example.reverseengineeringbuildphase.security.credential.RuntimeCredentialProvider { *; }
+-keep class com.example.reverseengineeringbuildphase.security.credential.CredentialCipher { *; }
+-keep class com.example.reverseengineeringbuildphase.security.credential.CredentialKeyDeriver { *; }
+-keep class com.example.reverseengineeringbuildphase.security.credential.CredentialFragmentAssembler { *; }
+-keepclassmembers class com.example.reverseengineeringbuildphase.security.credential.fragments.** {
+    byte[] payload();
+}
 
 # Keep annotation/signature metadata required by Retrofit.
 -keepattributes Signature, InnerClasses, EnclosingMethod

@@ -4,9 +4,13 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import com.example.reverseengineeringbuildphase.BuildConfig
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.security.MessageDigest
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
 
 enum class DeviceRisk {
     Low,
@@ -19,6 +23,14 @@ enum class DeviceRisk {
  * Intended to **inform** UX (e.g. limit sensitive actions) rather than hard-crash.
  */
 object IntegrityChecker {
+
+    private const val LOG_TAG = "REBP-Signing"
+
+    private data class SigningDigestResult(
+        val sha256Hex: String?,
+        val source: String,
+        val error: String? = null
+    )
 
     fun assess(context: Context): DeviceRisk {
         val pm = context.packageManager
@@ -97,39 +109,88 @@ object IntegrityChecker {
     }
 
     /**
-     * Optional release signing certificate SHA-256 (hex, no colons) from [BuildConfig.EXPECTED_SIGNING_CERT_SHA256].
-     * Empty → check skipped.
+     * Release builds require a non-empty [BuildConfig.EXPECTED_SIGNING_CERT_SHA256] populated at build time.
+     * Debug builds skip this check for local emulator work.
      */
     fun signingCertMatchesExpected(context: Context): Boolean {
+        if (BuildConfig.DEBUG) return true
         val expected = BuildConfig.EXPECTED_SIGNING_CERT_SHA256.trim().lowercase()
-        if (expected.isEmpty()) return true
-        val actual = signingCertSha256Hex(context) ?: return false
-        return actual == expected
+        val digest = resolveSigningDigest(context)
+        val actual = digest.sha256Hex
+        val match = expected.isNotEmpty() && actual != null && actual == expected
+        if (!match) {
+            logSigningMismatch(expected, digest, match)
+        }
+        return match
     }
 
-    private fun signingCertSha256Hex(context: Context): String? {
+    fun signingCertSha256Hex(context: Context): String? = resolveSigningDigest(context).sha256Hex
+
+    private fun resolveSigningDigest(context: Context): SigningDigestResult {
         return try {
             val pm = context.packageManager
             val pkg = context.packageName
-            val certDer: ByteArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val info = pm.getPackageInfo(pkg, PackageManager.GET_SIGNING_CERTIFICATES)
-                val signing = info.signingInfo ?: return null
-                val der = if (signing.hasMultipleSigners()) {
-                    signing.apkContentsSigners.firstOrNull()?.toByteArray()
-                } else {
-                    signing.signingCertificateHistory.firstOrNull()?.toByteArray()
+                val signing = info.signingInfo
+                    ?: return SigningDigestResult(null, "none", "signingInfo=null")
+
+                val apkSigners = signing.apkContentsSigners
+                if (!apkSigners.isNullOrEmpty()) {
+                    val signatureBytes = apkSigners[0].toByteArray()
+                    return SigningDigestResult(
+                        sha256Hex = x509Sha256Hex(signatureBytes),
+                        source = "apkContentsSigners[0]"
+                    )
                 }
-                der ?: return null
+
+                val history = signing.signingCertificateHistory
+                if (!history.isNullOrEmpty()) {
+                    val signatureBytes = history.last().toByteArray()
+                    return SigningDigestResult(
+                        sha256Hex = x509Sha256Hex(signatureBytes),
+                        source = "signingCertificateHistory.last"
+                    )
+                }
+
+                SigningDigestResult(null, "none", "no apkContentsSigners or signingCertificateHistory")
             } else {
                 @Suppress("DEPRECATION")
                 val sigs = pm.getPackageInfo(pkg, PackageManager.GET_SIGNATURES).signatures
-                    ?: return null
-                sigs.firstOrNull()?.toByteArray() ?: return null
+                if (sigs.isNullOrEmpty()) {
+                    return SigningDigestResult(null, "legacy.signatures", "signatures null or empty")
+                }
+                val signatureBytes = sigs[0].toByteArray()
+                SigningDigestResult(
+                    sha256Hex = x509Sha256Hex(signatureBytes),
+                    source = "legacy.signatures[0]"
+                )
             }
-            val md = MessageDigest.getInstance("SHA-256")
-            md.digest(certDer).joinToString("") { b -> "%02x".format(b) }
-        } catch (_: Exception) {
-            null
+        } catch (e: Exception) {
+            SigningDigestResult(
+                sha256Hex = null,
+                source = "error",
+                error = "${e.javaClass.simpleName}: ${e.message}"
+            )
         }
+    }
+
+    private fun x509Sha256Hex(signatureBytes: ByteArray): String {
+        val cert = CertificateFactory.getInstance("X.509")
+            .generateCertificate(ByteArrayInputStream(signatureBytes)) as X509Certificate
+        return MessageDigest.getInstance("SHA-256")
+            .digest(cert.encoded)
+            .joinToString("") { b -> "%02x".format(b.toInt() and 0xff) }
+    }
+
+    private fun logSigningMismatch(expected: String, digest: SigningDigestResult, match: Boolean) {
+        val actual = digest.sha256Hex
+        val errorSuffix = digest.error?.let { " error=$it" }.orEmpty()
+        Log.w(
+            LOG_TAG,
+            "signing mismatch: expected.len=${expected.length} expected.pref=${expected.take(8)} " +
+                "actual.len=${actual?.length ?: -1} actual.pref=${actual?.take(8)} " +
+                "match=$match source=${digest.source}$errorSuffix"
+        )
     }
 }
