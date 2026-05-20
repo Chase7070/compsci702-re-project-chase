@@ -4,7 +4,7 @@ import android.content.Context
 import com.example.reverseengineeringbuildphase.BuildConfig
 import com.example.reverseengineeringbuildphase.data.repository.SessionRepository
 import com.example.reverseengineeringbuildphase.data.security.TokenManager
-import com.example.reverseengineeringbuildphase.security.credential.RuntimeCredentialProvider
+import com.example.reverseengineeringbuildphase.security.credential.BootstrapCredentialRegistry
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -55,7 +55,7 @@ object NetworkModule {
             if (BuildConfig.DEBUG) {
                 null
             } else {
-                RuntimeCredentialProvider.bootstrapTokenOrNull(app)
+                BootstrapCredentialRegistry.bootstrapTokenOrNull(app)
             }
         }
         val pinner = PinningConfigurator.certificatePinnerOrNull()
