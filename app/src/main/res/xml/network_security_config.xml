@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Release / 非 debuggable：仅系统 CA，禁止明文 -->
+    <!-- Release / non-debuggable: system CAs only, no cleartext -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-    <!-- debuggable 构建：允许 user CA，便于 Charles/mitmproxy 本地调试 -->
+    <!-- Debuggable builds: allow user CAs for local proxy debugging -->
     <debug-overrides>
         <trust-anchors>
             <certificates src="system" />

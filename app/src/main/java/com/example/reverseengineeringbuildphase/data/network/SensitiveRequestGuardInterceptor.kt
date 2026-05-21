@@ -1,6 +1,7 @@
 package com.example.reverseengineeringbuildphase.data.network
 
 import android.content.Context
+import com.example.reverseengineeringbuildphase.R
 import com.example.reverseengineeringbuildphase.security.DeviceRisk
 import com.example.reverseengineeringbuildphase.security.IntegrityChecker
 import okhttp3.Interceptor
@@ -25,12 +26,16 @@ class SensitiveRequestGuardInterceptor(
         }
 
         if (!IntegrityChecker.signingCertMatchesExpected(appContext)) {
-            throw SensitiveRequestBlockedException("应用签名校验失败，已阻止敏感请求。")
+            throw SensitiveRequestBlockedException(
+                appContext.getString(R.string.error_signing_blocked_request)
+            )
         }
 
         when (IntegrityChecker.assess(appContext)) {
             DeviceRisk.High ->
-                throw SensitiveRequestBlockedException("检测到高风险运行环境，已阻止敏感请求。")
+                throw SensitiveRequestBlockedException(
+                    appContext.getString(R.string.error_high_risk_blocked_request)
+                )
 
             else -> return chain.proceed(request)
         }

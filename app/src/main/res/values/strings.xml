@@ -9,6 +9,37 @@
     <string name="idle_message">Input prompt and generate image.</string>
     <string name="loading_message">Generating image...</string>
     <string name="image_preview">Generated image preview</string>
-    <string name="error_prompt_empty">请输入 prompt</string>
-    <string name="session_relogin_hint">登录状态已失效，请重新配置凭证或联系管理员。</string>
+    <string name="error_prompt_empty">Enter a prompt first.</string>
+    <string name="session_relogin_hint">Session expired. Reconfigure credentials or contact your administrator.</string>
+
+    <string name="status_enter_prompt_first">Enter a prompt first.</string>
+    <string name="error_high_risk_environment">High-risk environment detected (debugging, hooks, or repackaging). Generation blocked.</string>
+    <string name="status_generation_blocked">Generation blocked.</string>
+    <string name="error_signing_mismatch">App signature does not match the expected certificate. Generation blocked.</string>
+    <string name="status_medium_risk_warning">Medium-risk environment detected (root, test-keys, or unusual install source). Continuing anyway.</string>
+    <string name="status_requesting_auth">Requesting /auth …</string>
+    <string name="status_loading_preview">Image URL received. Loading preview …</string>
+    <string name="status_cancelled">Cancelled.</string>
+    <string name="error_auth_failed_prefix">/auth failed:</string>
+    <string name="error_generate_failed_prefix">/generate_image failed:</string>
+    <string name="error_invalid_image_url_prefix">Invalid image URL:</string>
+    <string name="status_generation_failed">Generation failed.</string>
+    <string name="status_image_displayed">Image displayed.</string>
+    <string name="error_image_load_failed_prefix">Image load failed:</string>
+    <string name="status_preview_load_failed">Preview failed to load (URL is valid).</string>
+
+    <string name="error_signing_blocked_request">Signing check failed. Sensitive request blocked.</string>
+    <string name="error_high_risk_blocked_request">High-risk environment detected. Sensitive request blocked.</string>
+
+    <string name="network_timeout">Connection or read timed out. Try again later.</string>
+    <string name="network_connect_failed">Cannot reach the server. Check your network.</string>
+    <string name="network_unknown_host">Cannot resolve server address. Check network or configuration.</string>
+    <string name="network_stream_reset">Connection was reset. Try again.</string>
+    <string name="network_sensitive_blocked_default">Security policy blocked a sensitive request.</string>
+    <string name="network_ssl_peer_unverified">Cannot verify server identity (certificate pinning failed). Disable proxy/MITM tools or update app pins if the server rotated certificates.</string>
+    <string name="network_ssl_failed">Secure connection failed. Check network or certificates.</string>
+    <string name="network_io_failed">Network error: %1$s</string>
+    <string name="network_unknown_error">Unknown error (%1$s).</string>
+    <string name="http_error_with_body">HTTP %1$d: %2$s</string>
+    <string name="http_error_code_only">HTTP %1$d</string>
 </resources>
