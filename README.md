@@ -1,110 +1,81 @@
-# COMPSCI 702 · Reverse Engineering Project (Android)
+# AI Image Generator — Android App & Security Hardening
 
-University of Auckland **COMPSCI 702** course project: an Android client that talks **directly** to the course server. Main flow: **prompt → `/auth` → `/generate_image` → image preview → save to gallery**.
+A Kotlin Android app that turns text prompts into images through a remote AI API, with image previews and gallery saving. The project combines **Android development, API integration, layered application architecture, and security hardening**.
 
----
+## App preview
 
-## Requirements
+<table>
+  <tr>
+    <td align="center" valign="top">
+      <img src="docs/images/car-generation.jpg" width="300" alt="App showing the prompt car, a generated vehicle image, and Generate and Save controls">
+      <br><strong>Vehicle image generation</strong>
+    </td>
+    <td align="center" valign="top">
+      <img src="docs/images/cat-generation.jpg" width="300" alt="App interface showing the prompt cat and a generated cat image">
+      <br><strong>Animal image generation</strong>
+    </td>
+  </tr>
+</table>
 
-- JDK 17
-- Android Studio (stable recommended)
-- Android SDK (API 34 recommended)
-- AVD emulator or USB-debugged physical device
+*Development screenshots showing prompt input and generated image previews.*
 
----
+## Features
 
-## Local configuration (`secrets.properties`)
+- **Text-to-image generation:** authenticate with the API and submit a prompt to request an image.
+- **Responsive UI state:** prompt validation, loading feedback, cancellation, and error messages.
+- **Preview and save:** display images with Coil and export JPEGs to the device gallery through MediaStore.
+- **API session handling:** bootstrap authentication, optional session upgrade, and refresh handling when supported by the service.
+- **Release hardening:** obfuscation, encrypted credential fragments, certificate pinning, and runtime integrity checks.
 
-Gradle reads **`secrets.properties`** at the repository root (never commit this file).
+## Tech stack
 
-```bash
-cp secrets.example.properties secrets.properties
+| Area | Technologies |
+| --- | --- |
+| Android UI | Kotlin, XML layouts, ViewBinding, Material Components |
+| State and concurrency | ViewModel, StateFlow, Kotlin coroutines |
+| API integration | Retrofit, OkHttp, Gson |
+| Image handling | Coil, Android MediaStore |
+| Security | R8/ProGuard, StringFog, AES-GCM, EncryptedSharedPreferences, Android Keystore |
+
+## Architecture and API integration
+
+```text
+Activity + ViewBinding -> ViewModel + StateFlow -> Use case -> Repository
+                                                               |
+                                                        Retrofit / OkHttp
+                                                               |
+                                                            AI API
+
+Image URL -> Validation -> Coil preview / MediaStore gallery save
 ```
 
-| Key | Debug | Release (submission) |
-|-----|-------|----------------------|
-| `API_BASE_URL` | Required | Required (HTTPS base URL) |
-| `AUTH_HEADER_VALUE` | Required for bootstrap | Required — encrypted into the APK at build time |
-| `CERT_PINS` | Optional (easier local proxy) | **Required** — comma-separated `sha256/...` pins |
-| `RELEASE_SIGNING_SHA256` | Optional | **Required** when signing with a non-debug keystore (lowercase hex, no colons) |
+**Separation of responsibilities.** The Activity binds the interface, the ViewModel manages screen state and cancellation, and the use case and repository coordinate generation and API access. Coroutines handle asynchronous work, while StateFlow exposes loading, success, and error states to the UI.
 
-- **Debug:** Gradle writes `AUTH_HEADER_VALUE` to `app/src/debug/assets/auth_bootstrap.txt` (gitignored) and `BuildConfig.LOCAL_BOOTSTRAP_AUTH_VALUE`.
-- **Release:** Gradle AES-GCM-encrypts `AUTH_HEADER_VALUE` into build-generated credential fragments. Plaintext is not stored in `BuildConfig` or committed sources.
-- Use the **production** bootstrap key for your final signed release APK, not a test key.
-- If `RELEASE_SIGNING_SHA256` is empty, the build falls back to `~/.android/debug.keystore` (emulator-only release builds).
+**A complete API workflow.** The client calls `/auth` to obtain a signature, then submits that signature and the prompt to `/generate_image`. Returned image paths are normalized and validated before display or saving. Authentication, generation, and image-loading failures receive distinct user-facing feedback.
 
----
+**Session handling with a fallback.** When no access value is cached, the app attempts a session upgrade using its bootstrap credential. If the service does not support that flow, it can fall back to the bootstrap Authorization value. When a refresh token is available, a 401 can trigger refresh and one request replay.
 
-## Option 1 — Run Debug (development)
+**Consistent image networking.** Authenticated API calls, Coil previews, and gallery downloads share an OkHttp client. Session creation and refresh use a separate client with the same network policy, without the Authorization interceptor or refresh authenticator.
 
-### Android Studio
+## Security hardening
 
-1. Open the **repository root** (folder with `settings.gradle.kts`).
-2. Create and fill in `secrets.properties` (see above).
-3. Wait for Gradle sync, select a device, run the **app** configuration (debug variant).
+| Area | Implementation |
+| --- | --- |
+| Release obfuscation | R8/ProGuard and resource shrinking, with StringFog applied to application-package strings. |
+| Credential reconstruction | Build-time AES-GCM encryption splits bootstrap material into four generated fragments. Key derivation incorporates the package name, signing-certificate fingerprint, version code, and salts; decoy pipelines add static-analysis noise. |
+| Network protection | HTTPS, release certificate pinning, host allowlisting, and image URL/content-type validation. |
+| Local storage and logging | Keystore-backed encrypted preferences, disabled application backup, redacted credential-bearing DTOs, and debug-only OkHttp logging. |
+| Runtime integrity | Signing verification and debugger/hooking checks guard sensitive operations. High-risk environments or a signing mismatch block requests; medium-risk indicators produce a warning. |
 
-### Command line
+These measures raise reverse-engineering effort rather than make client-side credentials impossible to recover. The app still needs plaintext credential material at runtime.
 
-```bash
-./gradlew :app:assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
+## Engineering decisions
 
-APK path: `app/build/outputs/apk/debug/app-debug.apk`
+- **Preserve correctness while obfuscating.** Explicit Gson model and TypeToken keep rules retain the types needed for release response parsing. The design balances shrinking and obfuscation with reliable serialization.
+- **Protect the whole image workflow.** Gallery saving uses the same configured network client as image preview and authenticated API calls, rather than introducing a separate download path without those controls.
+- **Separate development from release behavior.** Debug builds allow local proxy debugging and skip release integrity enforcement. Release builds use certificate pins, signing checks, and generated encrypted bootstrap material.
+- **Use reverse-engineering findings to refine the design.** Credential handling goes beyond simple string obfuscation, while retaining the distinction between making analysis harder and keeping a reusable secret out of a client entirely.
 
----
+## Environment
 
-## Option 2 — Build signed Release (submission APK)
-
-Configure `secrets.properties` with your **production** `AUTH_HEADER_VALUE`, valid `CERT_PINS`, and `RELEASE_SIGNING_SHA256` matching the keystore you will use to sign the APK.
-
-### Android Studio (recommended for signing)
-
-1. **Build → Generate Signed Bundle / APK → APK**.
-2. Select your release keystore and build the **release** variant.
-3. Install the signed APK on a device or emulator and verify: prompt → generate → preview → save.
-
-Credential fragments are derived from the signing certificate SHA-256 at build time. The installed APK’s signature must match `RELEASE_SIGNING_SHA256`, or bootstrap decryption and integrity checks may fail.
-
-### Command line
-
-```bash
-./gradlew :app:assembleRelease
-```
-
-Output: `app/build/outputs/apk/release/app-release-unsigned.apk` (may be unsigned depending on your Studio/Gradle signing setup). Sign with Android Studio or your keystore before installing on a device.
-
----
-
-## Submission package
-
-| Deliverable | Contents |
-|-------------|----------|
-| **Source zip** | Source tree, `README.md`, `secrets.example.properties`, Gradle wrapper |
-| **Release APK** | Signed release APK built with production credentials (separate file) |
-
-**Do not include** in the source zip: `secrets.properties`, `*.jks` / `*.keystore`, `app/build/`, `.gradle/`, `local.properties`, or `app/src/debug/assets/auth_bootstrap.txt`.
-
----
-
-## Security (summary)
-
-- Release: **R8 / ProGuard**, resource shrinking, no cleartext, certificate pinning, host allowlist, build-time encrypted bootstrap credential.
-- **StringFog** (open source) on app package string literals only — not a substitute for secret protection.
-- **EncryptedSharedPreferences** for session tokens after bootstrap.
-- No commercial obfuscators; app communicates only with the course server.
-
----
-
-## Troubleshooting
-
-| Issue | Check |
-|-------|--------|
-| Release build fails at configure | `CERT_PINS` set in `secrets.properties` |
-| `/auth` returns 401 on release | Production `AUTH_HEADER_VALUE`; rebuild after changing secrets; `RELEASE_SIGNING_SHA256` matches signing cert |
-| Certificate / SSL errors | Update `CERT_PINS`; disable MITM proxy on release builds |
-| Generation blocked immediately | Release integrity checks (signature mismatch, hook/debug risk) |
-
----
-
-*Course assignment repository — not a production product.*
+Kotlin **1.9.24**, JVM target **17**, Android minimum **API 24**, and compile/target **API 34**. Image generation uses an external course AI service and requires valid credentials; the image-generation model and backend are not part of this repository.
