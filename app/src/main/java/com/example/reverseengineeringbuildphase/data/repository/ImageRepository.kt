@@ -3,6 +3,8 @@ package com.example.reverseengineeringbuildphase.data.repository
 import com.example.reverseengineeringbuildphase.BuildConfig
 import com.example.reverseengineeringbuildphase.data.model.GenerateImageRequest
 import com.example.reverseengineeringbuildphase.data.network.ApiService
+import com.example.reverseengineeringbuildphase.data.network.EndpointProvider
+import com.example.reverseengineeringbuildphase.data.network.ImageUrlValidator
 import com.example.reverseengineeringbuildphase.domain.GenerateImageFailure
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
@@ -15,7 +17,7 @@ class ImageRepository(
         coroutineContext.ensureActive()
 
         val signature = try {
-            val response = apiService.auth()
+            val response = apiService.auth(EndpointProvider.authPath())
             val sig = response.signature.trim()
             if (sig.isEmpty()) {
                 throw GenerateImageFailure.AuthFailed(
@@ -35,6 +37,7 @@ class ImageRepository(
 
         return try {
             val raw = apiService.generateImage(
+                EndpointProvider.generateImagePath(),
                 GenerateImageRequest(
                     signature = signature,
                     prompt = prompt
@@ -46,10 +49,17 @@ class ImageRepository(
                     IllegalStateException("Empty image path from /generate_image response.")
                 )
             }
+            try {
+                ImageUrlValidator.validateOrThrow(url)
+            } catch (e: IllegalArgumentException) {
+                throw GenerateImageFailure.InvalidImageUrl(e)
+            }
             url
         } catch (e: CancellationException) {
             throw e
         } catch (e: GenerateImageFailure.GenerateFailed) {
+            throw e
+        } catch (e: GenerateImageFailure.InvalidImageUrl) {
             throw e
         } catch (e: Exception) {
             throw GenerateImageFailure.GenerateFailed(e)

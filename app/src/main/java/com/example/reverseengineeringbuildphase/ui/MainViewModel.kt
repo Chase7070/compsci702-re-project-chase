@@ -1,11 +1,15 @@
 package com.example.reverseengineeringbuildphase.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.reverseengineeringbuildphase.R
 import com.example.reverseengineeringbuildphase.data.network.NetworkModule
 import com.example.reverseengineeringbuildphase.data.repository.ImageRepository
 import com.example.reverseengineeringbuildphase.domain.GenerateImageFailure
 import com.example.reverseengineeringbuildphase.domain.GenerateImageUseCase
+import com.example.reverseengineeringbuildphase.security.DeviceRisk
+import com.example.reverseengineeringbuildphase.security.IntegrityChecker
 import com.example.reverseengineeringbuildphase.util.NetworkErrorMapper
 import kotlinx.coroutines.CancellationException as CoroutineCancellationException
 import kotlinx.coroutines.Job
@@ -15,7 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val useCase = GenerateImageUseCase(
         ImageRepository(NetworkModule.apiService)
     )
@@ -24,6 +28,8 @@ class MainViewModel : ViewModel() {
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     private var generateJob: Job? = null
+
+    private val res get() = getApplication<Application>().resources
 
     fun onPromptChanged(newPrompt: String) {
         _uiState.update {
@@ -43,10 +49,38 @@ class MainViewModel : ViewModel() {
                     promptInputError = emptyPromptMessage,
                     pipelineError = null,
                     imageLoadError = null,
-                    statusMessage = "请先输入 prompt。"
+                    statusMessage = res.getString(R.string.status_enter_prompt_first)
                 )
             }
             return
+        }
+
+        val app = getApplication<Application>()
+        val risk = IntegrityChecker.assess(app)
+        if (risk == DeviceRisk.High) {
+            _uiState.update {
+                it.copy(
+                    pipelineError = res.getString(R.string.error_high_risk_environment),
+                    statusMessage = res.getString(R.string.status_generation_blocked)
+                )
+            }
+            return
+        }
+        if (!IntegrityChecker.signingCertMatchesExpected(app)) {
+            _uiState.update {
+                it.copy(
+                    pipelineError = res.getString(R.string.error_signing_mismatch),
+                    statusMessage = res.getString(R.string.status_generation_blocked)
+                )
+            }
+            return
+        }
+        if (risk == DeviceRisk.Medium) {
+            _uiState.update {
+                it.copy(
+                    statusMessage = res.getString(R.string.status_medium_risk_warning)
+                )
+            }
         }
 
         generateJob?.cancel()
@@ -58,7 +92,7 @@ class MainViewModel : ViewModel() {
                     promptInputError = null,
                     pipelineError = null,
                     imageLoadError = null,
-                    statusMessage = "正在请求 /auth …"
+                    statusMessage = res.getString(R.string.status_requesting_auth)
                 )
             }
 
@@ -70,7 +104,7 @@ class MainViewModel : ViewModel() {
                         isLoading = false,
                         pipelineError = null,
                         imageLoadError = null,
-                        statusMessage = "已获取图片地址，正在加载预览…"
+                        statusMessage = res.getString(R.string.status_loading_preview)
                     )
                 }
             } catch (e: CoroutineCancellationException) {
@@ -78,41 +112,56 @@ class MainViewModel : ViewModel() {
                     it.copy(
                         isLoading = false,
                         pipelineError = null,
-                        statusMessage = "已取消。"
+                        statusMessage = res.getString(R.string.status_cancelled)
                     )
                 }
                 throw e
             } catch (e: GenerateImageFailure.AuthFailed) {
                 val msg = NetworkErrorMapper.messageWithPrefix(
+                    resources = res,
                     cause = e.cause ?: e,
-                    prefix = "/auth 失败："
+                    prefix = res.getString(R.string.error_auth_failed_prefix)
                 )
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         pipelineError = msg,
-                        statusMessage = "生成失败。"
+                        statusMessage = res.getString(R.string.status_generation_failed)
                     )
                 }
             } catch (e: GenerateImageFailure.GenerateFailed) {
                 val msg = NetworkErrorMapper.messageWithPrefix(
+                    resources = res,
                     cause = e.cause ?: e,
-                    prefix = "/generate_image 失败："
+                    prefix = res.getString(R.string.error_generate_failed_prefix)
                 )
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         pipelineError = msg,
-                        statusMessage = "生成失败。"
+                        statusMessage = res.getString(R.string.status_generation_failed)
                     )
                 }
-            } catch (e: Exception) {
-                val msg = NetworkErrorMapper.messageForThrowable(e)
+            } catch (e: GenerateImageFailure.InvalidImageUrl) {
+                val msg = NetworkErrorMapper.messageWithPrefix(
+                    resources = res,
+                    cause = e.cause ?: e,
+                    prefix = res.getString(R.string.error_invalid_image_url_prefix)
+                )
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         pipelineError = msg,
-                        statusMessage = "生成失败。"
+                        statusMessage = res.getString(R.string.status_generation_failed)
+                    )
+                }
+            } catch (e: Exception) {
+                val msg = NetworkErrorMapper.messageForThrowable(res, e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        pipelineError = msg,
+                        statusMessage = res.getString(R.string.status_generation_failed)
                     )
                 }
             }
@@ -135,7 +184,7 @@ class MainViewModel : ViewModel() {
             if (state.imageUrl != expectedUrl) return@update state
             state.copy(
                 imageLoadError = null,
-                statusMessage = "图片已显示。"
+                statusMessage = res.getString(R.string.status_image_displayed)
             )
         }
     }
@@ -144,9 +193,10 @@ class MainViewModel : ViewModel() {
         if (throwable is CoroutineCancellationException) return
         _uiState.update { state ->
             if (state.imageUrl != expectedUrl) return@update state
+            val detail = NetworkErrorMapper.messageForThrowable(res, throwable)
             state.copy(
-                imageLoadError = "图片加载失败：${NetworkErrorMapper.messageForThrowable(throwable)}",
-                statusMessage = "图片地址有效，但预览加载失败。"
+                imageLoadError = res.getString(R.string.error_image_load_failed_prefix) + " " + detail,
+                statusMessage = res.getString(R.string.status_preview_load_failed)
             )
         }
     }

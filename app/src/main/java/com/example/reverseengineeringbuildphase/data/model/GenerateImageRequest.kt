@@ -7,4 +7,7 @@ data class GenerateImageRequest(
     val signature: String,
     @SerializedName("prompt")
     val prompt: String
-)
+) {
+    override fun toString(): String =
+        "GenerateImageRequest(signature=<redacted>, prompt=<redacted>)"
+}

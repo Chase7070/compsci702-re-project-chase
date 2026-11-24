@@ -1,8 +1,26 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("stringfog") version "5.2.0"
 }
 
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        // Required so StringFog can Class.forName(StringFogImpl) during configuration (see upstream README).
+        classpath("com.github.megatronking.stringfog:xor:5.0.0")
+    }
+}
+
+import com.github.megatronking.stringfog.plugin.StringFogExtension
+import com.github.megatronking.stringfog.plugin.StringFogMode
+import com.github.megatronking.stringfog.plugin.kg.RandomKeyGenerator
+import org.gradle.api.GradleException
+import java.io.File
+import java.security.KeyStore
+import java.security.MessageDigest
 import java.util.Properties
 
 val secrets = Properties().apply {
@@ -14,6 +32,54 @@ val secrets = Properties().apply {
 
 fun secret(name: String, defaultValue: String = ""): String {
     return secrets.getProperty(name, defaultValue)
+}
+
+val isReleaseBuildRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("release", ignoreCase = true)
+}
+
+apply(from = rootProject.file("gradle/credential-fragments.gradle.kts"))
+
+fun resolveBuildSigningSha256(): String {
+    val configured = secret("RELEASE_SIGNING_SHA256", "").trim().lowercase()
+    if (configured.isNotEmpty()) return configured
+    val home = System.getProperty("user.home")
+    val keystore = File(home, ".android/debug.keystore")
+    if (!keystore.exists()) return ""
+    return runCatching {
+        val ks = KeyStore.getInstance(KeyStore.getDefaultType())
+        keystore.inputStream().use { stream -> ks.load(stream, "android".toCharArray()) }
+        val cert = ks.getCertificate("androiddebugkey") ?: return ""
+        val md = MessageDigest.getInstance("SHA-256")
+        md.digest(cert.encoded).joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    }.getOrDefault("")
+}
+
+if (isReleaseBuildRequested && secret("CERT_PINS").isBlank()) {
+    throw GradleException(
+        "Release builds require CERT_PINS in secrets.properties. " +
+            "Debug may omit pinning, but release must ship with certificate pins."
+    )
+}
+
+tasks.register("syncAuthBootstrap") {
+    doLast {
+        val outDir = File(projectDir, "src/debug/assets")
+        outDir.mkdirs()
+        val token = secret("AUTH_HEADER_VALUE", "").trim()
+        val f = File(outDir, "auth_bootstrap.txt")
+        File(projectDir, "src/main/assets/auth_bootstrap.txt").delete()
+        File(projectDir, "src/release/assets/auth_bootstrap.txt").delete()
+        if (token.isNotEmpty()) {
+            f.writeText(token)
+        } else if (f.exists()) {
+            f.delete()
+        }
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("syncAuthBootstrap", "generateCredentialFragments")
 }
 
 android {
@@ -30,15 +96,44 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Read local values from secrets.properties.
-        // AUTHORIZATION_TOKEN should be the raw token only, with no "Bearer " prefix.
         buildConfigField("String", "BASE_URL", "\"${secret("API_BASE_URL", "https://ai.elliottwen.info/")}\"")
-        buildConfigField("String", "AUTHORIZATION_TOKEN", "\"${secret("AUTH_HEADER_VALUE")}\"")
+        // Optional comma-separated extra hosts for image/CDN (no scheme). BASE_URL host is always allowed.
+        buildConfigField(
+            "String",
+            "ALLOWED_NETWORK_HOSTS",
+            "\"${secret("ALLOWED_NETWORK_HOSTS", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
+        // Optional OkHttp pins: comma-separated `sha256/...` for the host of BASE_URL (see secrets.example.properties).
+        buildConfigField(
+            "String",
+            "CERTIFICATE_PINS",
+            "\"${secret("CERT_PINS", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
+        buildConfigField(
+            "String",
+            "EXPECTED_SIGNING_CERT_SHA256",
+            "\"${resolveBuildSigningSha256().replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
+    }
+
+    sourceSets {
+        getByName("main") {
+            java.srcDir(layout.buildDirectory.dir("generated/credential-src"))
+        }
     }
 
     buildTypes {
+        debug {
+            buildConfigField(
+                "String",
+                "LOCAL_BOOTSTRAP_AUTH_VALUE",
+                "\"${secret("AUTH_HEADER_VALUE", "").replace("\\", "\\\\").replace("\"", "\\\"")}\""
+            )
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("String", "LOCAL_BOOTSTRAP_AUTH_VALUE", "\"\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -61,6 +156,19 @@ android {
     }
 }
 
+configure<StringFogExtension> {
+    // XOR runtime (must match implementation class below).
+    implementation = "com.github.megatronking.stringfog.xor.StringFogImpl"
+    enable = true
+    debug = false
+    // Only our application code; do not fog third-party / generated deps.
+    fogPackages = arrayOf("com.example.reverseengineeringbuildphase")
+    kg = RandomKeyGenerator()
+    mode = StringFogMode.bytes
+    // Manifest has no package=; explicit id matches namespace / applicationId.
+    packageName = "com.example.reverseengineeringbuildphase"
+}
+
 dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.core:core-ktx:1.13.1")
@@ -70,6 +178,7 @@ dependencies {
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
+    implementation("androidx.security:security-crypto:1.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
@@ -78,6 +187,9 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation("io.coil-kt:coil:2.7.0")
+
+    // StringFog runtime decryptor (see stringfog { implementation = ... }).
+    implementation("com.github.megatronking.stringfog:xor:5.0.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

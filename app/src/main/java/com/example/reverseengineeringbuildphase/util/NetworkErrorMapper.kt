@@ -1,5 +1,8 @@
 package com.example.reverseengineeringbuildphase.util
 
+import android.content.res.Resources
+import com.example.reverseengineeringbuildphase.R
+import com.example.reverseengineeringbuildphase.data.network.SensitiveRequestBlockedException
 import okhttp3.internal.http2.StreamResetException
 import retrofit2.HttpException
 import java.io.IOException
@@ -7,27 +10,38 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.net.ssl.SSLException
+import javax.net.ssl.SSLPeerUnverifiedException
 
 object NetworkErrorMapper {
 
-    fun messageWithPrefix(cause: Throwable, prefix: String): String {
-        val detail = messageForThrowable(cause)
+    fun messageWithPrefix(resources: Resources, cause: Throwable, prefix: String): String {
+        val detail = messageForThrowable(resources, cause)
         val p = prefix.trim()
         return if (p.isEmpty()) detail else "$p $detail"
     }
 
-    fun messageForThrowable(throwable: Throwable): String {
+    fun messageForThrowable(resources: Resources, throwable: Throwable): String {
         val hit = throwable.findFirstKnownCause()
         return when (hit) {
-            is SocketTimeoutException -> "连接或读取超时，请稍后重试。"
-            is ConnectException -> "无法连接服务器，请检查网络。"
-            is UnknownHostException -> "无法解析服务器地址，请检查网络或配置。"
-            is StreamResetException -> "连接被中断，请重试。"
-            is SSLException -> "安全连接失败，请检查网络或证书。"
-            is HttpException -> httpMessage(hit)
-            is IOException -> "网络异常：${hit.message ?: hit.javaClass.simpleName}"
-            else -> hit.message?.takeIf { it.isNotBlank() }
-                ?: "未知错误（${hit.javaClass.simpleName}）。"
+            is SocketTimeoutException -> resources.getString(R.string.network_timeout)
+            is ConnectException -> resources.getString(R.string.network_connect_failed)
+            is UnknownHostException -> resources.getString(R.string.network_unknown_host)
+            is StreamResetException -> resources.getString(R.string.network_stream_reset)
+            is SensitiveRequestBlockedException ->
+                hit.message?.takeIf { it.isNotBlank() }
+                    ?: resources.getString(R.string.network_sensitive_blocked_default)
+            is SSLPeerUnverifiedException ->
+                resources.getString(R.string.network_ssl_peer_unverified)
+            is SSLException -> resources.getString(R.string.network_ssl_failed)
+            is HttpException -> httpMessage(resources, hit)
+            is IOException ->
+                resources.getString(
+                    R.string.network_io_failed,
+                    hit.message ?: hit.javaClass.simpleName
+                )
+            else ->
+                hit.message?.takeIf { it.isNotBlank() }
+                    ?: resources.getString(R.string.network_unknown_error, hit.javaClass.simpleName)
         }
     }
 
@@ -38,6 +52,8 @@ object NetworkErrorMapper {
                 t is ConnectException ||
                 t is UnknownHostException ||
                 t is StreamResetException ||
+                t is SensitiveRequestBlockedException ||
+                t is SSLPeerUnverifiedException ||
                 t is SSLException ||
                 t is HttpException
         } ?: chain.last()
@@ -54,7 +70,7 @@ object NetworkErrorMapper {
         return out
     }
 
-    private fun httpMessage(http: HttpException): String {
+    private fun httpMessage(resources: Resources, http: HttpException): String {
         val code = http.code()
         val snippet = try {
             http.response()?.errorBody()?.string()
@@ -63,7 +79,10 @@ object NetworkErrorMapper {
         } catch (_: Exception) {
             null
         }
-        val base = "HTTP $code"
-        return if (snippet.isNullOrBlank()) base else "$base：$snippet"
+        return if (snippet.isNullOrBlank()) {
+            resources.getString(R.string.http_error_code_only, code)
+        } else {
+            resources.getString(R.string.http_error_with_body, code, snippet)
+        }
     }
 }

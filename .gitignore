@@ -39,6 +39,7 @@ google-services.json
 .env.*
 *.env
 secrets.properties
+app/src/debug/assets/auth_bootstrap.txt
 key.properties
 signing.properties
 

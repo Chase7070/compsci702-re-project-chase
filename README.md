@@ -1,91 +1,81 @@
-# COMPSCI 702 · Reverse Engineering Project (Android)  
-# COMPSCI 702 · 逆向工程课程项目（Android）
+# AI Image Generator — Android App & Security Hardening
 
-**EN:** University of Auckland **COMPSCI 702** course project: an Android client that talks **directly** to the course server. Main flow: **prompt → `/auth` → `/generate_image` → image preview → save to gallery**.
+A Kotlin Android app that turns text prompts into images through a remote AI API, with image previews and gallery saving. The project combines **Android development, API integration, layered application architecture, and security hardening**.
 
-**中文：** 奥克兰大学 **COMPSCI 702** 课程 Android 客户端，**仅直连**课程服务器。主流程：**输入 prompt → `/auth` → `/generate_image` → 图片预览 → 保存到相册**。
+## App preview
 
----
+<table>
+  <tr>
+    <td align="center" valign="top">
+      <img src="docs/images/car-generation.jpg" width="300" alt="App showing the prompt car, a generated vehicle image, and Generate and Save controls">
+      <br><strong>Vehicle image generation</strong>
+    </td>
+    <td align="center" valign="top">
+      <img src="docs/images/cat-generation.jpg" width="300" alt="App interface showing the prompt cat and a generated cat image">
+      <br><strong>Animal image generation</strong>
+    </td>
+  </tr>
+</table>
 
-## Requirements / 环境要求
+*Development screenshots showing prompt input and generated image previews.*
 
-**EN:** JDK 17 · Android Studio (stable recommended) · Android SDK (API 34 recommended) · standard AVD or USB-debugged device.
+## Features
 
-**中文：** JDK 17 · Android Studio（建议稳定版）· Android SDK（建议 API 34）· 标准模拟器或已开启 USB 调试的真机。
+- **Text-to-image generation:** authenticate with the API and submit a prompt to request an image.
+- **Responsive UI state:** prompt validation, loading feedback, cancellation, and error messages.
+- **Preview and save:** display images with Coil and export JPEGs to the device gallery through MediaStore.
+- **API session handling:** bootstrap authentication, optional session upgrade, and refresh handling when supported by the service.
+- **Release hardening:** obfuscation, encrypted credential fragments, certificate pinning, and runtime integrity checks.
 
----
+## Tech stack
 
-## Quick start / 快速开始
+| Area | Technologies |
+| --- | --- |
+| Android UI | Kotlin, XML layouts, ViewBinding, Material Components |
+| State and concurrency | ViewModel, StateFlow, Kotlin coroutines |
+| API integration | Retrofit, OkHttp, Gson |
+| Image handling | Coil, Android MediaStore |
+| Security | R8/ProGuard, StringFog, AES-GCM, EncryptedSharedPreferences, Android Keystore |
 
-**EN**
+## Architecture and API integration
 
-1. Open the **repository root** in Android Studio (folder with `settings.gradle.kts`).  
-2. Create local secrets (never commit):
+```text
+Activity + ViewBinding -> ViewModel + StateFlow -> Use case -> Repository
+                                                               |
+                                                        Retrofit / OkHttp
+                                                               |
+                                                            AI API
 
-   ```bash
-   cp secrets.example.properties secrets.properties
-   ```
+Image URL -> Validation -> Coil preview / MediaStore gallery save
+```
 
-   Set at least: `API_BASE_URL` (HTTPS base URL; trailing slash per backend), `AUTH_HEADER_VALUE` (see comments in `app/build.gradle.kts` for `Bearer` prefix).  
-3. Run the **app** configuration (default **debug**).
+**Separation of responsibilities.** The Activity binds the interface, the ViewModel manages screen state and cancellation, and the use case and repository coordinate generation and API access. Coroutines handle asynchronous work, while StateFlow exposes loading, success, and error states to the UI.
 
-**中文**
+**A complete API workflow.** The client calls `/auth` to obtain a signature, then submits that signature and the prompt to `/generate_image`. Returned image paths are normalized and validated before display or saving. Authentication, generation, and image-loading failures receive distinct user-facing feedback.
 
-1. 在 Android Studio 中打开**仓库根目录**（含 `settings.gradle.kts`）。  
-2. 本地创建密钥文件（**不要**提交到 Git）：
+**Session handling with a fallback.** When no access value is cached, the app attempts a session upgrade using its bootstrap credential. If the service does not support that flow, it can fall back to the bootstrap Authorization value. When a refresh token is available, a 401 can trigger refresh and one request replay.
 
-   ```bash
-   cp secrets.example.properties secrets.properties
-   ```
+**Consistent image networking.** Authenticated API calls, Coil previews, and gallery downloads share an OkHttp client. Session creation and refresh use a separate client with the same network policy, without the Authorization interceptor or refresh authenticator.
 
-   至少填写：`API_BASE_URL`（课程服务器 HTTPS 基址，末尾斜杠按后端要求）、`AUTH_HEADER_VALUE`（详见 `app/build.gradle.kts` 内注释）。  
-3. 运行 **app**（默认 **debug**）。
+## Security hardening
 
-**More / 详细步骤与排错：** [docs/build/install-and-run.md](docs/build/install-and-run.md)
+| Area | Implementation |
+| --- | --- |
+| Release obfuscation | R8/ProGuard and resource shrinking, with StringFog applied to application-package strings. |
+| Credential reconstruction | Build-time AES-GCM encryption splits bootstrap material into four generated fragments. Key derivation incorporates the package name, signing-certificate fingerprint, version code, and salts; decoy pipelines add static-analysis noise. |
+| Network protection | HTTPS, release certificate pinning, host allowlisting, and image URL/content-type validation. |
+| Local storage and logging | Keystore-backed encrypted preferences, disabled application backup, redacted credential-bearing DTOs, and debug-only OkHttp logging. |
+| Runtime integrity | Signing verification and debugger/hooking checks guard sensitive operations. High-risk environments or a signing mismatch block requests; medium-risk indicators produce a warning. |
 
----
+These measures raise reverse-engineering effort rather than make client-side credentials impossible to recover. The app still needs plaintext credential material at runtime.
 
-## Build / 构建
+## Engineering decisions
 
-| Variant / 变体 | Command / 命令 | Notes / 说明 |
-|----------------|------------------|----------------|
-| Debug | `./gradlew :app:assembleDebug` | **EN:** Dev & emulator; APK in `app/build/outputs/apk/debug/`. **中文：** 日常开发与模拟器演示。 |
-| Release | `./gradlew :app:assembleRelease` | **EN:** R8 + shrink resources; APK in `app/build/outputs/apk/release/`. May be **unsigned**—add signing in Android Studio if needed. **中文：** 已启用混淆与资源收缩；默认可能为**未签名** APK，需在 Android Studio 配置签名后再装真机。 |
+- **Preserve correctness while obfuscating.** Explicit Gson model and TypeToken keep rules retain the types needed for release response parsing. The design balances shrinking and obfuscation with reliable serialization.
+- **Protect the whole image workflow.** Gallery saving uses the same configured network client as image preview and authenticated API calls, rather than introducing a separate download path without those controls.
+- **Separate development from release behavior.** Debug builds allow local proxy debugging and skip release integrity enforcement. Release builds use certificate pins, signing checks, and generated encrypted bootstrap material.
+- **Use reverse-engineering findings to refine the design.** Credential handling goes beyond simple string obfuscation, while retaining the distinction between making analysis harder and keeping a reusable secret out of a client entirely.
 
----
+## Environment
 
-## Documentation / 文档索引
-
-| | |
-|--|--|
-| **EN** | [Install and run](docs/build/install-and-run.md) · [Repository structure](docs/build/repository-structure.md) · [Fortify log](docs/fortify/2026-04-21.md) |
-| **中文** | [安装与运行](docs/build/install-and-run.md) · [仓库结构](docs/build/repository-structure.md) · [Fortify 记录](docs/fortify/2026-04-21.md) |
-
----
-
-## Fortify status / 加固状态
-
-**Done / 已完成**
-
-- **EN:** Release **R8 / ProGuard** + resource shrinking; minimal **keep** rules for Retrofit / Gson. Release builds omit OkHttp `HttpLoggingInterceptor`; debug keeps `Level.BASIC`.  
-- **中文：** Release 启用 **R8/ProGuard** 与资源收缩；为 Retrofit/Gson 保留最小 **keep** 规则。Release 不注册 OkHttp 网络日志拦截器；Debug 仍使用 `BASIC` 便于调试。
-
-**Planned / 计划中**（渐进、符合课程要求）
-
-- **EN:** Network Security Config · outbound **host allowlist** (API + image URLs) · mild signing / integrity checks (no hard anti-emulator).  
-- **中文：** 网络安全配置（HTTPS/域名策略）· 出站 **host 白名单**（接口与图片 URL）· 温和签名/完整性检测（不做强硬反模拟器）。
-
-**Details / 详情：** [docs/fortify/2026-04-21.md](docs/fortify/2026-04-21.md)
-
----
-
-## Compliance & secrets / 合规与密钥
-
-**EN:** App talks **only** to the course server—no third-party proxies or unrelated outbound traffic. Do not commit `secrets.properties`, real tokens, or final keys. No commercial obfuscators; use Android **R8**.
-
-**中文：** App **仅**与课程服务器通信，禁止第三方中转或无关外联。勿将 `secrets.properties`、真实 token、最终提交用密钥提交到仓库。不使用商业混淆器，使用 Android 自带 **R8**。
-
----
-
-*Course assignment repository—not a production product.*  
-*课程作业仓库，非生产级产品。*
+Kotlin **1.9.24**, JVM target **17**, Android minimum **API 24**, and compile/target **API 34**. Image generation uses an external course AI service and requires valid credentials; the image-generation model and backend are not part of this repository.

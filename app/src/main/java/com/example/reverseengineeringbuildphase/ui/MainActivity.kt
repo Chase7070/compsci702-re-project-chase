@@ -9,9 +9,12 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.dispose
 import coil.load
 import com.example.reverseengineeringbuildphase.R
+import com.example.reverseengineeringbuildphase.data.session.AppSessionEvents
 import com.example.reverseengineeringbuildphase.databinding.ActivityMainBinding
 import com.example.reverseengineeringbuildphase.util.ImageSaver
 import kotlinx.coroutines.CancellationException
@@ -19,7 +22,13 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
-    private val viewModel: MainViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                MainViewModel(application)
+            }
+        }
+    }
 
     private var lastLoadedImageUrl: String? = null
 
@@ -30,6 +39,7 @@ class MainActivity : AppCompatActivity() {
 
         setupActions()
         observeUiState()
+        observeSessionEvents()
     }
 
     private fun setupActions() {
@@ -76,6 +86,20 @@ class MainActivity : AppCompatActivity() {
                 } finally {
                     val s = viewModel.uiState.value
                     binding.saveButton.isEnabled = !s.imageUrl.isNullOrBlank() && !s.isLoading
+                }
+            }
+        }
+    }
+
+    private fun observeSessionEvents() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                AppSessionEvents.reloginSuggested.collect {
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.session_relogin_hint),
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }
